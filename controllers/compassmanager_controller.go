@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/kyma-project/compass-manager/api/v1beta1"
@@ -21,6 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
+
+var MockedManager = true
 
 const (
 	AnnotationIDForMigration = "compass-runtime-id-for-migration"
@@ -149,7 +152,12 @@ func (cm *CompassManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if compassRuntimeID == "" {
-		newCompassRuntimeID, regErr := cm.Registrator.RegisterInCompass(createCompassRuntimeLabels(kymaLabels))
+		if !MockedManager {
+			_, _ = cm.Registrator.RegisterInCompass(createCompassRuntimeLabels(kymaLabels))
+		}
+		var regErr error
+		regErr = nil
+		newCompassRuntimeID := "tttttttt-" + mockedGenerateRandomText(4) + "-4734-855c-903143f9dc6e"
 		if regErr != nil {
 			cmerr := cm.upsertCompassMappingResource("", req.Namespace, kymaLabels)
 			if cmerr != nil {
@@ -173,7 +181,11 @@ func (cm *CompassManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, errors.Wrap(err, "failed to obtain Global Account label from Kyma CR")
 	}
 
-	err = cm.Configurator.ConfigureCompassRuntimeAgent(kubeconfig, compassRuntimeID, globalAccount)
+	if !MockedManager {
+		err = cm.Configurator.ConfigureCompassRuntimeAgent(kubeconfig, compassRuntimeID, globalAccount)
+	}
+
+	err = nil
 	if err != nil {
 		cm.Log.Warnf("Failed to configure Compass Runtime Agent for Kyma resource %s: %v.", req.Name, err)
 		return ctrl.Result{RequeueAfter: cm.requeueTime}, err
@@ -318,10 +330,13 @@ func (cm *CompassManagerReconciler) handleKymaDeletion(kymaName, namespace strin
 	}
 
 	cm.Log.Infof("Runtime deregistration in Compass for Kyma Resource %s", kymaName)
-	err = cm.Registrator.DeregisterFromCompass(runtimeIDFromMapping, globalAccountFromMapping)
-	if err != nil {
-		cm.Log.Warnf("Failed to deregister Runtime from Compass for Kyma Resource %s: %v", kymaName, err)
-		return errors.Wrap(&DirectorError{message: err}, "failed to deregister Runtime from Compass")
+
+	if !MockedManager {
+		err = cm.Registrator.DeregisterFromCompass(runtimeIDFromMapping, globalAccountFromMapping)
+		if err != nil {
+			cm.Log.Warnf("Failed to deregister Runtime from Compass for Kyma Resource %s: %v", kymaName, err)
+			return errors.Wrap(&DirectorError{message: err}, "failed to deregister Runtime from Compass")
+		}
 	}
 
 	err = cm.deleteCompassMapping(kymaName, namespace)
@@ -398,7 +413,7 @@ func (cm *CompassManagerReconciler) needsToBeReconciled(obj runtime.Object) bool
 	kymaModules := kymaObj.Spec.Modules
 
 	for _, v := range kymaModules {
-		if v.Name == ApplicationConnectorModuleName {
+		if v.Name == "mocked-app-con" {
 			return true
 		}
 	}
@@ -427,4 +442,13 @@ func createCompassRuntimeLabels(kymaLabels map[string]string) map[string]interfa
 	runtimeLabels["broker_plan_name"] = kymaLabels[LabelBrokerPlanName]
 
 	return runtimeLabels
+}
+
+func mockedGenerateRandomText(count int) string {
+	letterRunes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	runes := make([]rune, count)
+	for i := range runes {
+		runes[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(runes)
 }

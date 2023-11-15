@@ -106,6 +106,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if controllers.MockedManager {
+		log.Infof("Testing connection to Director...")
+		_, err := directorClient.GetConnectionToken("34ff2d6d-d622-4f71-8043-c7d58ce23b7f", "e449f875-b5b2-4485-b7c0-98725c0571bf")
+		if err != nil {
+			log.Fatal("Failed during connection with Director, exiting...")
+		}
+		log.Infof("Established connection with Director!")
+	}
+
 	compassRegistrator := controllers.NewCompassRegistator(directorClient, log)
 	runtimeAgentConfigurator := controllers.NewRuntimeAgentConfigurator(directorClient, log)
 	requeueTime := time.Minute * 5 //nolint:gomnd
