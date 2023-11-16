@@ -58,6 +58,7 @@ func (e *DirectorError) Error() string {
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=kymas,verbs=get;list;watch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=compassmanagermappings,verbs=create;get;list;delete;watch;update
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=compassmanagermappings/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=compassmanagermappings/finalizers,verbs=update;get
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 //go:generate mockery --name=Configurator
