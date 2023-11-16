@@ -43,6 +43,13 @@ rules:
 - apiGroups:
   - operator.kyma-project.io
   resources:
+  - compassmanagermappings/finalizers
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - operator.kyma-project.io
+  resources:
   - kymas
   verbs:
   - get

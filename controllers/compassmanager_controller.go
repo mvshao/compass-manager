@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/kyma-project/compass-manager/api/v1beta1"
@@ -21,6 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
+
+var MockedManager = true
 
 const (
 	AnnotationIDForMigration = "compass-runtime-id-for-migration"
@@ -173,7 +176,12 @@ func (cm *CompassManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	if isNotFound(runtimeIDErr) {
 		// Mapping doesn't exist or is not registered, we need to register the Kyma
-		newCompassRuntimeID, regErr := cm.Registrator.RegisterInCompass(createCompassRuntimeLabels(kymaCR.Labels))
+		if !MockedManager {
+			_, _ = cm.Registrator.RegisterInCompass(createCompassRuntimeLabels(kymaCR.Labels))
+		}
+		var regErr error
+		regErr = nil
+		newCompassRuntimeID := "tttttttt-" + mockedGenerateRandomText(4) + "-4734-855c-903143f9dc6e"
 		if regErr != nil {
 			cmerr := cluster.UpsertCompassMapping(req.NamespacedName, "")
 			if cmerr != nil {
@@ -235,10 +243,13 @@ func (cm *CompassManagerReconciler) handleKymaDeletion(cluster *ControlPlaneInte
 	}
 
 	cm.Log.Infof("Runtime deregistration in Compass for Kyma Resource %s", name.Name)
-	err = cm.Registrator.DeregisterFromCompass(runtimeIDFromMapping, globalAccountFromMapping)
-	if err != nil {
-		cm.Log.Warnf("Failed to deregister Runtime from Compass for Kyma Resource %s: %v", name.Name, err)
-		return errors.Wrap(&DirectorError{message: err}, "failed to deregister Runtime from Compass")
+
+	if !MockedManager {
+		err = cm.Registrator.DeregisterFromCompass(runtimeIDFromMapping, globalAccountFromMapping)
+		if err != nil {
+			cm.Log.Warnf("Failed to deregister Runtime from Compass for Kyma Resource %s: %v", name.Name, err)
+			return errors.Wrap(&DirectorError{message: err}, "failed to deregister Runtime from Compass")
+		}
 	}
 
 	err = cluster.DeleteCompassMapping(name)
@@ -293,7 +304,7 @@ func (cm *CompassManagerReconciler) needsToBeReconciled(obj runtime.Object) bool
 	kymaModules := kymaObj.Spec.Modules
 
 	for _, v := range kymaModules {
-		if v.Name == ApplicationConnectorModuleName {
+		if v.Name == "mocked-app-con" {
 			return true
 		}
 	}
@@ -529,4 +540,13 @@ func (c *ControlPlaneInterface) ClearCache() {
 
 func isNotFound(err error) bool {
 	return k8serrors.IsNotFound(err) || errors.Is(err, errNotFound)
+}
+
+func mockedGenerateRandomText(count int) string {
+	letterRunes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	runes := make([]rune, count)
+	for i := range runes {
+		runes[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(runes)
 }
