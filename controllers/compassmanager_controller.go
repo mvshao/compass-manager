@@ -138,12 +138,24 @@ func (cm *CompassManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	kymaLabels := kymaCR.Labels
 	kymaAnnotations := kymaCR.Annotations
 
+	globalAccount, ok := kymaLabels[LabelGlobalAccountID]
+	if !ok {
+		return ctrl.Result{}, errors.Wrap(err, "failed to obtain Global Account label from Kyma CR")
+	}
+
 	if migrationCompassRuntimeID, ok := kymaAnnotations[AnnotationIDForMigration]; compassRuntimeID == "" && ok {
 		cm.Log.Infof("Configuring compass for already registered Kyma resource %s.", req.Name)
 		cmerr := cm.upsertCompassMappingResource(migrationCompassRuntimeID, req.Namespace, kymaLabels)
 		if cmerr != nil {
 			return ctrl.Result{RequeueAfter: cm.requeueTime}, errors.Wrap(cmerr, "failed to create Compass Manager Mapping for an already registered Kyma")
 		}
+
+		cfgerr := cm.Configurator.ConfigureCompassRuntimeAgent(kubeconfig, migrationCompassRuntimeID, globalAccount)
+		if cfgerr != nil {
+			//_ = cluster.SetCompassMappingStatus(req.NamespacedName, true, false)
+			return ctrl.Result{}, errors.Wrap(cfgerr, "failed to configure secret for Compass Runtime Agent")
+		}
+		cm.Log.Infof("Compass Runtime Agent for Runtime %s configured.", compassRuntimeID)
 		return ctrl.Result{}, nil
 	}
 
@@ -176,14 +188,7 @@ func (cm *CompassManagerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		cm.Log.Infof("Runtime %s registered for Kyma resource %s.", newCompassRuntimeID, req.Name)
 	}
 
-	globalAccount, ok := kymaLabels[LabelGlobalAccountID]
-	if !ok {
-		return ctrl.Result{}, errors.Wrap(err, "failed to obtain Global Account label from Kyma CR")
-	}
-
-	if !MockedManager {
-		err = cm.Configurator.ConfigureCompassRuntimeAgent(kubeconfig, compassRuntimeID, globalAccount)
-	}
+	err = cm.Configurator.ConfigureCompassRuntimeAgent(kubeconfig, compassRuntimeID, globalAccount)
 
 	err = nil
 	if err != nil {
