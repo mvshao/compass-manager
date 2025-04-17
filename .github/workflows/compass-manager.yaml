@@ -1,6 +1,11 @@
 name: Compass Manager
 
 on:
+  workflow_dispatch:
+    environment:
+      description: 'Environment to run tests against'
+      type: environment
+      required: false
   push:
     branches:
       - main
@@ -14,11 +19,6 @@ on:
       - LICENSE
       - .gitignore
       - "**.md"
-    workflow_dispatch:
-      environment:
-        description: 'Environment to run tests against'
-        type: environment
-        required: false
 
   pull_request_target:
     types: [opened, synchronize, reopened]
@@ -75,7 +75,7 @@ jobs:
     permissions:
       contents: read
     needs: setup
-    if: needs.setup.outputs.code == 'true'
+#    if: needs.setup.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
