@@ -19,6 +19,11 @@ on:
       - LICENSE
       - .gitignore
       - "**.md"
+    workflow_dispatch:
+      environment:
+        description: 'Environment to run tests against'
+        type: environment
+        required: false
 
   pull_request_target:
     types: [opened, synchronize, reopened]
